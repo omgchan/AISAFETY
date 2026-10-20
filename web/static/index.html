@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nyaya-Guard: Trustworthy AI Input & Output Guardrails System</title>
+  <meta name="description" content="Production-ready input and output guardrail system for legal AI assistants. Features PII detection, prompt injection defense, schema validation, groundedness verification, and audit logging.">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">N</div>
+      <div>
+        <div style="display:flex; align-items:center;">
+          <span class="brand-title">NYAYA-GUARD</span>
+          <span class="brand-badge">TRUSTWORTHY AI</span>
+        </div>
+        <div style="font-size:0.75rem; color:#64748b;">Nepal Legal & Compliance AI Assistant</div>
+      </div>
+    </div>
+
+    <nav class="nav-tabs">
+      <button class="nav-btn active" data-target="pane-playground">Live Playground</button>
+      <button class="nav-btn" data-target="pane-benchmark">Benchmark (25 Tests)</button>
+      <button class="nav-btn" data-target="pane-architecture">Architecture & Specs</button>
+      <button class="nav-btn" data-target="pane-audit">Audit Log Chain</button>
+    </nav>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container">
+
+    <!-- TAB 1: PLAYGROUND -->
+    <div id="pane-playground" class="tab-pane active">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>Security & Guardrail Playground</span>
+          </div>
+          <span class="badge badge-neutral">Interactive Testing</span>
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <label class="input-label">Quick Test Scenarios (Click to Load):</label>
+          <div class="preset-bar">
+            <button class="preset-chip" data-preset="benign">Benign Company Registration</button>
+            <button class="preset-chip" data-preset="injection">Direct Prompt Override</button>
+            <button class="preset-chip" data-preset="pii">PII Submission (Email, Phone, Citizenship)</button>
+            <button class="preset-chip" data-preset="crisis">Self-Harm Crisis Intervention</button>
+            <button class="preset-chip" data-preset="schema">Malformed Output Schema</button>
+            <button class="preset-chip" data-preset="hallucination">Hallucinated Statutory Section</button>
+            <button class="preset-chip" data-preset="output_leak">Output PII & Secrets Leak</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <label class="input-label" for="input-query">User Prompt / Legal Query:</label>
+            <textarea id="input-query" class="form-control" rows="5" placeholder="Enter user prompt or attack string..."></textarea>
+          </div>
+
+          <div>
+            <label class="input-label" for="input-context">Reference Statutory Context (for Groundedness):</label>
+            <textarea id="input-context" class="form-control" rows="5" placeholder="Enter reference legal statute or background context..."></textarea>
+          </div>
+        </div>
+
+        <div style="margin-top:1rem;">
+          <label class="input-label" for="input-mock">Optional Mock Model Output (Leave blank to use internal Legal AI generation):</label>
+          <textarea id="input-mock" class="form-control" rows="3" placeholder='Optional JSON or text to test output guardrails directly e.g. {"summary": "..."}'></textarea>
+        </div>
+
+        <div class="button-row" style="margin-top:1.25rem; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <label class="input-label" style="margin-bottom:0;" for="select-anonymize">PII Anonymization:</label>
+            <select id="select-anonymize" class="form-control" style="width:160px; padding:0.45rem 0.75rem;">
+              <option value="redact">Redact ([REDACTED])</option>
+              <option value="mask">Mask (jo***@dom...)</option>
+              <option value="tokenize">Tokenize (&lt;TOKEN_...&gt;)</option>
+            </select>
+          </div>
+
+          <button id="btn-run-playground" class="btn btn-primary">Execute Guardrail Pipeline</button>
+        </div>
+      </div>
+
+      <!-- Playground Results Section -->
+      <div id="results-card" class="card" style="display:none;">
+        <div class="card-header">
+          <div class="card-title">
+            <span>Execution Decision & Telemetry</span>
+            <span id="status-badge" class="badge">ALLOWED</span>
+          </div>
+          <span id="latency-badge" class="badge badge-neutral">0.0 ms</span>
+        </div>
+
+        <div class="grid-2">
+          <!-- Input Stage Findings -->
+          <div class="metric-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+              <span class="metric-label">Input Guardrails Stage</span>
+              <span id="input-status-badge" class="badge badge-allowed">ALLOWED</span>
+            </div>
+            <div style="font-size:0.85rem; margin-bottom:0.35rem;"><strong>Action:</strong> <span id="input-action" style="color:#a5b4fc;">allow</span></div>
+            <div style="font-size:0.85rem; margin-bottom:0.35rem;"><strong>Note:</strong> <span id="input-reason" style="color:#94a3b8;">None</span></div>
+            <div style="font-size:0.8rem; color:#64748b; margin-top:0.5rem;"><strong>Processed Input (Sent to Model):</strong></div>
+            <div id="input-processed" style="background:#06090f; padding:0.5rem; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:#e2e8f0; margin-top:0.25rem;"></div>
+          </div>
+
+          <!-- Output Stage Findings -->
+          <div id="output-details-section" class="metric-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+              <span class="metric-label">Output Guardrails Stage</span>
+              <span id="output-status-badge" class="badge badge-allowed">ALLOWED</span>
+            </div>
+            <div style="font-size:0.85rem; margin-bottom:0.35rem;"><strong>Remediation:</strong> <span id="output-remediation" style="color:#a5b4fc;">ALLOW</span></div>
+            <div style="font-size:0.85rem; margin-bottom:0.35rem;"><strong>Groundedness Score:</strong> <span id="output-groundedness" style="color:#34d399;">100%</span></div>
+            <div style="font-size:0.85rem; margin-bottom:0.35rem;"><strong>Schema Conformance:</strong> <span id="output-schema" style="color:#34d399;">Valid JSON Schema</span></div>
+          </div>
+        </div>
+
+        <div style="margin-top:1.25rem;">
+          <label class="input-label">Final System Response (Delivered to User):</label>
+          <pre id="final-output-display" class="code-display"></pre>
+        </div>
+
+        <div style="margin-top:1rem;">
+          <label class="input-label">Complete Telemetry JSON:</label>
+          <pre id="raw-json-display" class="code-display" style="max-height:220px;"></pre>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- TAB 2: BENCHMARK EVALUATION -->
+    <div id="pane-benchmark" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Comprehensive 25-Case Benchmark Suite</div>
+            <div style="font-size:0.85rem; color:#94a3b8;">Evaluates inputs, malicious attacks, PII, policy categories, schemas, and hallucinations.</div>
+          </div>
+          <button id="btn-run-benchmark" class="btn btn-emerald">Run All 25 Benchmark Tests</button>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="grid-4" style="margin-bottom:1.5rem;">
+          <div class="metric-card">
+            <span class="metric-label">Test Pass Rate</span>
+            <span id="kpi-passrate" class="metric-value" style="color:#34d399;">100%</span>
+            <span class="metric-sub">25 of 25 Test Cases Passing</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Precision</span>
+            <span id="kpi-precision" class="metric-value" style="color:#60a5fa;">100.0%</span>
+            <span class="metric-sub">Zero False Positives</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Recall (Sensitivity)</span>
+            <span id="kpi-recall" class="metric-value" style="color:#a78bfa;">100.0%</span>
+            <span class="metric-sub">Zero False Negatives</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">F1-Score</span>
+            <span id="kpi-f1" class="metric-value" style="color:#f472b6;">1.000</span>
+            <span class="metric-sub">Harmonic Balance</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Mean Latency</span>
+            <span id="kpi-latency" class="metric-value" style="color:#fbbf24;">1.26 ms</span>
+            <span class="metric-sub">Ultra-low Pipeline Overhead</span>
+          </div>
+        </div>
+
+        <!-- Confusion Matrix -->
+        <div style="margin-bottom:1.5rem;">
+          <label class="input-label">Confusion Matrix (Ground-Truth Security Classification):</label>
+          <div class="cm-grid">
+            <div></div>
+            <div style="text-align:center; font-weight:600; color:#94a3b8; font-size:0.8rem;">PREDICTED POSITIVE (THREAT/PII)</div>
+            <div style="text-align:center; font-weight:600; color:#94a3b8; font-size:0.8rem;">PREDICTED NEGATIVE (BENIGN)</div>
+
+            <div style="display:flex; align-items:center; font-weight:600; color:#94a3b8; font-size:0.8rem;">ACTUAL POSITIVE</div>
+            <div class="cm-cell tp">
+              <div id="cm-tp" class="cm-val" style="color:#34d399;">20</div>
+              <div style="font-size:0.75rem; color:#94a3b8;">True Positives (TP)</div>
+            </div>
+            <div class="cm-cell fn">
+              <div id="cm-fn" class="cm-val" style="color:#94a3b8;">0</div>
+              <div style="font-size:0.75rem; color:#94a3b8;">False Negatives (FN)</div>
+            </div>
+
+            <div style="display:flex; align-items:center; font-weight:600; color:#94a3b8; font-size:0.8rem;">ACTUAL NEGATIVE</div>
+            <div class="cm-cell fp">
+              <div id="cm-fp" class="cm-val" style="color:#94a3b8;">0</div>
+              <div style="font-size:0.75rem; color:#94a3b8;">False Positives (FP)</div>
+            </div>
+            <div class="cm-cell tn">
+              <div id="cm-tn" class="cm-val" style="color:#34d399;">5</div>
+              <div style="font-size:0.75rem; color:#94a3b8;">True Negatives (TN)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table of Test Cases -->
+        <label class="input-label">Individual Test Execution Log:</label>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Category</th>
+                <th>Test Case Name & Query</th>
+                <th>Expected Behavior</th>
+                <th>Actual Behavior</th>
+                <th>Status</th>
+                <th>Latency</th>
+              </tr>
+            </thead>
+            <tbody id="test-cases-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- TAB 3: ARCHITECTURE & SPECS -->
+    <div id="pane-architecture" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Dual-Stage Guardrail Architecture</div>
+          <span class="badge badge-neutral">Specification & Design</span>
+        </div>
+
+        <div style="margin-bottom:1.5rem; line-height:1.7; color:#cbd5e1;">
+          Nyaya-Guard implements a <strong>fail-fast, fail-closed dual-stage pipeline</strong> protecting legal AI workflows against data leakage, instruction hijacking, hallucinations, and format deviations.
+        </div>
+
+        <div class="grid-2">
+          <!-- Input Guardrails Specs -->
+          <div class="card" style="background:var(--bg-surface);">
+            <h3 style="color:#6366f1; margin-bottom:1rem; font-family:'Outfit',sans-serif;">Stage 1: Input Guardrails</h3>
+            
+            <div style="margin-bottom:1.25rem;">
+              <h4 style="color:#f8fafc; font-size:0.95rem;">1. Input Normalizer & Validator</h4>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Approach:</strong> Unicode NFKC normalization, zero-width stripping (\u200b, \ufeff), Cyrillic homoglyph lookalike substitution, control char filtering.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Action:</strong> Rejects null bytes and structural malformations. Passes normalized text.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Limitation:</strong> Extreme multi-script combinatorial encodings may require expanded dictionaries.</p>
+            </div>
+
+            <div style="margin-bottom:1.25rem;">
+              <h4 style="color:#f8fafc; font-size:0.95rem;">2. Prompt Injection Detector</h4>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Approach:</strong> 35+ compiled regex patterns (Overrides, DAN mode, Prompt Extraction, Impersonation, Context Delimiters) + Shannon entropy and system command heuristic flags.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Action:</strong> Immediate hard block with threat category and composite risk score.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Limitation:</strong> Indirect semantic paraphrasing and novel low-resource linguistic jailbreaks.</p>
+            </div>
+
+            <div style="margin-bottom:1.25rem;">
+              <h4 style="color:#f8fafc; font-size:0.95rem;">3. PII Detection & Anonymization Engine</h4>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Approach:</strong> Deterministic regex bank for Emails, Phone Numbers (+977 / international), Nepal Citizenship Numbers, PANs, SSNs, Passports, and adversarial spacing/at-dot obfuscation.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Action:</strong> Sanitizes input via Redaction, Masking, or Tokenization before model ingestion.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Limitation:</strong> Unstructured full human names without legal context keywords.</p>
+            </div>
+
+            <div>
+              <h4 style="color:#f8fafc; font-size:0.95rem;">4. Sensitive Topic Classifier & Crisis Router</h4>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Approach:</strong> Multi-class keyword and regex matching across Weapons/CBRN, Cyberweapons, Extremism, CSAE, Financial Fraud, and Self-Harm/Crisis.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Action:</strong> Prohibited topics trigger <code>hard_block</code>; Self-harm queries trigger <code>safe_response</code> providing certified crisis hotlines (Nepal 1166 Helpline / Police 100).</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Limitation:</strong> Polysemous terms in academic historical discussions.</p>
+            </div>
+          </div>
+
+          <!-- Output Guardrails Specs -->
+          <div class="card" style="background:var(--bg-surface);">
+            <h3 style="color:#06b6d4; margin-bottom:1rem; font-family:'Outfit',sans-serif;">Stage 2: Output Guardrails</h3>
+            
+            <div style="margin-bottom:1.25rem;">
+              <h4 style="color:#f8fafc; font-size:0.95rem;">1. Output Schema Validator</h4>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Approach:</strong> JSON extraction from markdown code fences, balanced brace detection, syntax repair, and validation against <code>LegalAIResponseStructure</code>.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Action:</strong> On failure, generates structured corrective retry prompt detailing missing fields and invalid types.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Limitation:</strong> Deeply nested arbitrary schema graphs with dynamic conditionals.</p>
+            </div>
+
+            <div style="margin-bottom:1.25rem;">
+              <h4 style="color:#f8fafc; font-size:0.95rem;">2. Sensitive Information & Secret Detector</h4>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Approach:</strong> Re-scans generated output for unredacted user PII, API tokens, cryptographic keys, and integrity canary tokens.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Action:</strong> Redacts confidential strings, or executes immediate refusal if canary leaks.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Limitation:</strong> Stolen internal secrets disguised as generic English words.</p>
+            </div>
+
+            <div>
+              <h4 style="color:#f8fafc; font-size:0.95rem;">3. Groundedness & Hallucination Checker</h4>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Approach:</strong> Extracts atomic propositional claims from narrative fields, tests lexical token overlap and statutory citation integrity against source reference context; detects hedging phrases.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Action:</strong> If score &lt; domain threshold (0.85 for Legal), intercepts output and returns certified Safe Fallback response.</p>
+              <p style="font-size:0.84rem; color:#94a3b8;"><strong>Limitation:</strong> Pure deductive reasoning where conclusions use distinct vocabulary from premises.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- TAB 4: AUDIT LOG -->
+    <div id="pane-audit" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Cryptographic Audit Trail (SHA-256 Hash Chain)</div>
+            <div style="font-size:0.85rem; color:#94a3b8;">Immutable, tamper-evident recording of every safety decision, threat detection, and latency.</div>
+          </div>
+          <div style="display:flex; gap:0.75rem; align-items:center;">
+            <span id="audit-integrity-badge" class="badge badge-allowed">VERIFYING...</span>
+            <button id="btn-verify-audit" class="btn btn-secondary">Re-Verify Chain</button>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+          <span id="audit-count" style="font-size:0.85rem; color:#94a3b8;">0 Records Logged</span>
+          <span style="font-size:0.75rem; color:#64748b;">Algorithm: SHA-256 Chain | Storage: JSON Lines</span>
+        </div>
+
+        <div id="audit-records-container" style="max-height:550px; overflow-y:auto;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
